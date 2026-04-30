@@ -12,6 +12,20 @@ class BancoDados:
         except Exception as e:
             return False, str(e)
 
-    def obter_produtos_fake(self):
-        # Simulação de dados para a interface
-        return [{"id": str(i).zfill(3), "nome": f"Produto Exemplo {i}"} for i in range(25)]
+    def buscar_produto_por_codigo(self, codigo):
+        try:
+            conn = pyodbc.connect(rf'DSN={self.dsn};')
+            cursor = conn.cursor()
+            # Usar parameterized query é mais seguro e performático
+            cursor.execute("SELECT Descricao FROM Produtos WHERE Codigo = ?", (codigo,))
+            row = cursor.fetchone()
+            
+            cursor.close()
+            conn.close()
+
+            if row:
+                return True, str(row.Descricao)
+            else:
+                return False, "Nenhum produto encontrado."
+        except Exception as e:
+            return False, f"Erro no banco: {str(e)}"

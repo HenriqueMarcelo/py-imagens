@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from colunas import ColunaLista, ColunaGaleria, ColunaAcao
+from colunas import ColunaBusca, ColunaGaleria, ColunaAcao
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -14,11 +14,8 @@ class JanelaPrincipal(ctk.CTk):
 
         self.grid_columnconfigure((0, 1, 2), weight=1)
         self.grid_rowconfigure(0, weight=1)
-
-        # Criando e posicionando as colunas
-        produtos = self.banco.obter_produtos_fake()
-        
-        self.col1 = ColunaLista(self, produtos)
+       
+        self.col1 = ColunaBusca(self, self.banco)
         self.col1.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
         self.col2 = ColunaGaleria(self)
