@@ -3,9 +3,11 @@ import threading
 from tkinter import messagebox
 
 class ColunaBusca(ctk.CTkFrame):
-    def __init__(self, master, banco):
+    def __init__(self, master, banco, callback_selecao):
         # Definimos uma largura sugerida aqui
         super().__init__(master, width=200) 
+
+        self.callback_selecao = callback_selecao # Guardamos a função da JanelaPrincipal
         
         # ESSA LINHA É A CHAVE: impede que o frame mude de tamanho pelo conteúdo
         self.pack_propagate(False) 
@@ -61,18 +63,57 @@ class ColunaBusca(ctk.CTkFrame):
         else:
             self.label_descricao.configure(text=resultado, text_color="#FF5555") # Vermelho suave
 
+    def atualizar_interface(self, sucesso, resultado):
+        if sucesso:
+            self.label_descricao.configure(text=resultado, text_color="white")
+        else:
+            self.label_descricao.configure(text=resultado, text_color="#FF5555")
+        
+        # DISPARA O GATILHO PARA A OUTRA COLUNA
+        self.callback_selecao(sucesso, resultado)
+
 class ColunaGaleria(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
-        ctk.CTkLabel(self, text="Imagens do Produto", font=("Roboto", 16, "bold")).pack(pady=10)
         
-        self.grid_fotos = ctk.CTkFrame(self, fg_color="transparent")
+        # Estado Inicial: Mensagem de espera
+        self.frame_espera = ctk.CTkFrame(self, fg_color="transparent")
+        self.frame_espera.pack(expand=True, fill="both")
+        
+        self.label_aviso = ctk.CTkLabel(
+            self.frame_espera, 
+            text="Selecione um item", 
+            font=("Roboto", 16, "italic"),
+            text_color="gray"
+        )
+        self.label_aviso.pack(expand=True)
+
+        # Estado Ativo: Onde as fotos aparecerão (inicia escondido)
+        self.frame_fotos = ctk.CTkFrame(self, fg_color="transparent")
+        
+        self.label_titulo = ctk.CTkLabel(self.frame_fotos, text="Imagens do Produto", font=("Roboto", 16, "bold"))
+        self.label_titulo.pack(pady=10)
+
+        self.grid_fotos = ctk.CTkFrame(self.frame_fotos, fg_color="transparent")
         self.grid_fotos.pack(expand=True)
 
+        # Criar os 4 quadrados
+        self.quadrados = []
         for i in range(4):
-            txt = "Imagem" if i < 2 else "+"
-            btn = ctk.CTkButton(self.grid_fotos, text=txt, width=120, height=120, corner_radius=10)
+            btn = ctk.CTkButton(self.grid_fotos, text="+", width=120, height=120, corner_radius=10)
             btn.grid(row=i//2, column=i%2, padx=10, pady=10)
+            self.quadrados.append(btn)
+
+    def mostrar_galeria(self, nome_produto):
+        """Esconde o aviso e mostra os quadrados das fotos"""
+        self.frame_espera.pack_forget() # Remove o aviso da tela
+        self.frame_fotos.pack(expand=True, fill="both") # Mostra a galeria
+        self.label_titulo.configure(text=f"Imagens: {nome_produto[:20]}...")
+
+    def resetar_galeria(self):
+        """Volta para o estado inicial 'Selecione um item'"""
+        self.frame_fotos.pack_forget()
+        self.frame_espera.pack(expand=True, fill="both")
 
 class ColunaAcao(ctk.CTkFrame):
     def __init__(self, master, callback_teste):
