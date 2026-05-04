@@ -5,6 +5,8 @@ from tkinter import messagebox
 from PIL import Image
 import logging
 from gestor_imagens import GestorImagens
+import webbrowser 
+import urllib.parse
 
 logging.basicConfig(level=logging.INFO)
 
@@ -56,14 +58,13 @@ class ColunaBusca(ctk.CTkFrame):
         self.callback_selecao(sucesso, resultado, codigo)
 
 class ColunaGaleria(ctk.CTkFrame):
-    def __init__(self, master):
+    def __init__(self, master, callback_clique_foto): # Adicionado callback
         super().__init__(master)
         self.pack_propagate(False)
+        self.callback_clique_foto = callback_clique_foto # Função que será chamada ao clicar na foto
         
         self.gestor = GestorImagens()
         self._cache_renderizado = {}
-
-        # --- Carregamento da Imagem Padrão ---
         self.caminho_padrao = "./sem-imagem.jpg"
         self.img_padrao_ctk = self._gerar_imagem_padrao()
 
@@ -81,16 +82,14 @@ class ColunaGaleria(ctk.CTkFrame):
 
         self.quadrados = []
         for i in range(4):
-            # Iniciamos o botão já com a imagem padrão
+            # Usamos lambda com i=i para capturar o valor correto do índice no loop
             btn = ctk.CTkButton(
                 self.grid_fotos, 
                 text="", 
                 image=self.img_padrao_ctk,
-                width=150, 
-                height=150, 
-                corner_radius=10,
-                cursor="hand2",
-                fg_color="#2b2b2b" # Cor de fundo neutra
+                width=150, height=150, corner_radius=10,
+                cursor="hand2", fg_color="#2b2b2b",
+                command=lambda idx=i: self.callback_clique_foto(idx + 1) # Envia 1, 2, 3 ou 4
             )
             btn.grid(row=i//2, column=i%2, padx=10, pady=10)
             self.quadrados.append(btn)
@@ -157,18 +156,64 @@ class ColunaGaleria(ctk.CTkFrame):
 class ColunaAcao(ctk.CTkFrame):
     def __init__(self, master, callback_teste):
         super().__init__(master)
-        
-        ctk.CTkButton(self, text="Escolher no computador").pack(fill="x", padx=20, pady=(20, 5))
-        ctk.CTkButton(self, text="Buscar no Google").pack(fill="x", padx=20, pady=5)
-        ctk.CTkButton(self, text="Colar Imagem").pack(fill="x", padx=20, pady=5)
+        self.pack_propagate(False)
+        self.callback_teste = callback_teste
+        self.descricao_atual = ""
 
-        self.preview = ctk.CTkLabel(self, text="Pré-visualização", width=200, height=200, 
+        # --- Estado Inicial (Mensagem de aviso) ---
+        self.frame_vazio = ctk.CTkFrame(self, fg_color="transparent")
+        self.frame_vazio.pack(expand=True, fill="both")
+        self.label_msg = ctk.CTkLabel(
+            self.frame_vazio, 
+            text="Selecione qual imagem\ndeseja modificar/incluir", 
+            font=("Roboto", 14, "italic"), 
+            text_color="gray"
+        )
+        self.label_msg.pack(expand=True)
+
+        # --- Estado Ativo (Botões de Ação) ---
+        self.frame_acoes = ctk.CTkFrame(self, fg_color="transparent")
+        
+        self.label_info_foto = ctk.CTkLabel(self.frame_acoes, text="Editando Imagem X", font=("Roboto", 16, "bold"), text_color="#3b8ed0")
+        self.label_info_foto.pack(pady=(20, 10))
+
+        ctk.CTkButton(self.frame_acoes, text="Escolher no computador", cursor="hand2").pack(fill="x", padx=20, pady=5)
+        ctk.CTkButton(
+            self.frame_acoes, 
+            text="Buscar no Google", 
+            cursor="hand2",
+            command=self.abrir_google
+        ).pack(fill="x", padx=20, pady=5)
+        ctk.CTkButton(self.frame_acoes, text="Colar Imagem", cursor="hand2").pack(fill="x", padx=20, pady=5)
+
+        self.preview = ctk.CTkLabel(self.frame_acoes, text="Pré-visualização", width=200, height=200, 
                                     fg_color="#1a1a1a", corner_radius=10)
         self.preview.pack(pady=20)
 
-        ctk.CTkButton(self, text="Salvar", fg_color="green").pack(fill="x", padx=20, pady=5)
+        ctk.CTkButton(self.frame_acoes, text="Salvar Alteração", fg_color="green", cursor="hand2").pack(fill="x", padx=20, pady=5)
+        
         ctk.CTkButton(
-            self,
+            self.frame_acoes,
             text="Testar ODBC",
-            command=lambda: messagebox.showinfo("Teste ODBC", callback_teste()[1])
+            command=lambda: messagebox.showinfo("Teste ODBC", self.callback_teste()[1]),
+            cursor="hand2"
         ).pack(fill="x", padx=20, pady=5)
+
+    def preparar_edicao(self, numero_foto, descricao_produto):
+        """Agora recebe também a descrição do produto"""
+        self.descricao_atual = descricao_produto
+        self.frame_vazio.pack_forget()
+        self.frame_acoes.pack(expand=True, fill="both")
+        self.label_info_foto.configure(text=f"Editando Imagem Número {numero_foto}")
+
+    def abrir_google(self):
+        if self.descricao_atual:
+            termo_busca = urllib.parse.quote(self.descricao_atual.strip())
+            url = f"https://www.google.com/search?&tbm=isch&q={termo_busca}"
+
+            webbrowser.open(url)
+
+    def resetar(self):
+        """Volta para a mensagem inicial"""
+        self.frame_acoes.pack_forget()
+        self.frame_vazio.pack(expand=True, fill="both")
