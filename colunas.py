@@ -1,7 +1,7 @@
 import customtkinter as ctk
 import threading
 import os
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 from PIL import Image, ImageGrab
 import logging
 from gestor_imagens import GestorImagens
@@ -55,6 +55,7 @@ class ColunaGaleria(ctk.CTkFrame):
         super().__init__(master)
         self.pack_propagate(False)
         self.callback_clique_foto = callback_clique_foto
+        self.codigo_atual = None
 
         self.gestor = GestorImagens()
         self._cache_renderizado = {}
@@ -97,13 +98,20 @@ class ColunaGaleria(ctk.CTkFrame):
 
     def alternar_estado(self, ativo, nome="", codigo=""):
         if ativo:
+            self.codigo_atual = codigo
             self.frame_vazio.pack_forget()
             self.frame_fotos.pack(expand=True, fill="both")
             self.label_titulo.configure(text=f"Imagens: {nome[:25]}...")
             self.carregar_fotos_disco(codigo)
         else:
+            self.codigo_atual = None
             self.frame_fotos.pack_forget()
             self.frame_vazio.pack(expand=True, fill="both")
+
+    def recarregar(self):
+        """Recarrega as fotos do produto atual sem precisar de parâmetros externos."""
+        if self.codigo_atual:
+            self.carregar_fotos_disco(self.codigo_atual)
 
     def carregar_fotos_disco(self, codigo_15):
         caminhos = self.gestor.buscar_fotos_produto(codigo_15)
@@ -130,14 +138,15 @@ class ColunaGaleria(ctk.CTkFrame):
 
 
 class ColunaAcao(ctk.CTkFrame):
-    def __init__(self, master, callback_teste):
+    def __init__(self, master, callback_teste, callback_recarregar_galeria):
         super().__init__(master)
         self.pack_propagate(False)
         self.callback_teste = callback_teste
+        self.callback_recarregar_galeria = callback_recarregar_galeria  # <-- NOVO
         self.descricao_atual = ""
         self.numero_foto_atual = None
         self.codigo_produto_atual = None
-        self.imagem_colada = None  # Armazena a PIL Image colada temporariamente
+        self.imagem_pendente = None  # Imagem original aguardando salvamento
 
         # --- Estado Inicial ---
         self.frame_vazio = ctk.CTkFrame(self, fg_color="transparent")
@@ -157,7 +166,12 @@ class ColunaAcao(ctk.CTkFrame):
                                             font=("Roboto", 16, "bold"), text_color="#3b8ed0")
         self.label_info_foto.pack(pady=(20, 10))
 
-        ctk.CTkButton(self.frame_acoes, text="Escolher no computador", cursor="hand2").pack(fill="x", padx=20, pady=5)
+        ctk.CTkButton(
+            self.frame_acoes,
+            text="Escolher no computador",
+            cursor="hand2",
+            command=self.escolher_no_computador
+        ).pack(fill="x", padx=20, pady=5)
         ctk.CTkButton(
             self.frame_acoes,
             text="Buscar no Google",
@@ -168,7 +182,7 @@ class ColunaAcao(ctk.CTkFrame):
             self.frame_acoes,
             text="Colar Imagem",
             cursor="hand2",
-            command=self.colar_imagem  # <-- NOVO
+            command=self.colar_imagem
         ).pack(fill="x", padx=20, pady=5)
 
         self.preview = ctk.CTkLabel(
@@ -182,7 +196,7 @@ class ColunaAcao(ctk.CTkFrame):
             text="Salvar Alteração",
             fg_color="green",
             cursor="hand2",
-            command=self.salvar_alteracao  # <-- NOVO
+            command=self.salvar_alteracao
         ).pack(fill="x", padx=20, pady=5)
 
         ctk.CTkButton(
@@ -192,22 +206,55 @@ class ColunaAcao(ctk.CTkFrame):
             cursor="hand2"
         ).pack(fill="x", padx=20, pady=5)
 
-    def preparar_edicao(self, numero_foto, descricao_produto, codigo_produto=""):
-        self.descricao_atual = descricao_produto
-        self.numero_foto_atual = numero_foto
-        self.codigo_produto_atual = codigo_produto
-        self.imagem_colada = None
-        self.frame_vazio.pack_forget()
-        self.frame_acoes.pack(expand=True, fill="both")
-        self.label_info_foto.configure(text=f"Editando Imagem Número {numero_foto}")
-        
-        # Reseta o preview corretamente
-        self.preview.configure(image=ctk.CTkImage(
-            light_image=Image.new("RGB", (1, 1)),
-            dark_image=Image.new("RGB", (1, 1)),
-            size=(1, 1)
-        ), text="Pré-visualização")
+    # ------------------------------------------------------------------
+    # Métodos compartilhados de tratamento de imagem
+    # ------------------------------------------------------------------
+
+    def _carregar_imagem_no_preview(self, img_pil: Image.Image):
+        """Recebe uma PIL Image, armazena o original e exibe a miniatura no preview."""
+        self.imagem_pendente = img_pil.convert("RGB")
+
+        preview_img = self.imagem_pendente.copy()
+        preview_img.thumbnail((190, 190), Image.LANCZOS)
+
+        img_ctk = ctk.CTkImage(
+            light_image=preview_img,
+            dark_image=preview_img,
+            size=preview_img.size
+        )
+        self.preview.configure(image=img_ctk, text="")
+        self.preview.image = img_ctk
+
+    def _resetar_preview(self):
+        """Volta o preview ao estado padrão (sem imagem)."""
+        self.imagem_pendente = None
+        self.preview.configure(
+            image=ctk.CTkImage(
+                light_image=Image.new("RGB", (1, 1)),
+                dark_image=Image.new("RGB", (1, 1)),
+                size=(1, 1)
+            ),
+            text="Pré-visualização"
+        )
         self.preview.image = None
+
+    # ------------------------------------------------------------------
+    # Ações dos botões
+    # ------------------------------------------------------------------
+
+    def escolher_no_computador(self):
+        caminho = filedialog.askopenfilename(
+            title="Selecionar imagem",
+            filetypes=[("Imagens", "*.jpg *.jpeg *.png *.gif *.bmp *.webp"), ("Todos os arquivos", "*.*")]
+        )
+        if not caminho:
+            return  # Usuário cancelou
+
+        try:
+            img = Image.open(caminho)
+            self._carregar_imagem_no_preview(img)
+        except Exception as e:
+            messagebox.showerror("Erro", f"Não foi possível abrir a imagem:\n{e}")
 
     def colar_imagem(self):
         try:
@@ -224,24 +271,11 @@ class ColunaAcao(ctk.CTkFrame):
             messagebox.showwarning("Aviso", "O conteúdo da área de transferência não é uma imagem.")
             return
 
-        self.imagem_colada = img.convert("RGB")  # Original preservada
-
-        # Cópia apenas para o preview
-        preview_img = self.imagem_colada.copy()
-        preview_img.thumbnail((190, 190), Image.LANCZOS)
-
-        img_ctk = ctk.CTkImage(
-            light_image=preview_img,
-            dark_image=preview_img,
-            size=preview_img.size
-        )
-        self.preview.configure(image=img_ctk, text="")
-        self.preview.image = img_ctk
+        self._carregar_imagem_no_preview(img)
 
     def salvar_alteracao(self):
-        """Salva a imagem colada em disco como .jpg, substituindo versões anteriores."""
-        if self.imagem_colada is None:
-            messagebox.showwarning("Aviso", "Nenhuma imagem para salvar. Cole uma imagem primeiro.")
+        if self.imagem_pendente is None:
+            messagebox.showwarning("Aviso", "Nenhuma imagem para salvar.")
             return
 
         if not self.codigo_produto_atual:
@@ -252,7 +286,6 @@ class ColunaAcao(ctk.CTkFrame):
         caminho_fotos = gestor.caminho_fotos
         extensoes = gestor.extensoes
 
-        # Monta o nome base (sufixo vazio para foto 1, _2 para foto 2, etc.)
         sufixo = "" if self.numero_foto_atual == 1 else f"_{self.numero_foto_atual}"
         nome_base = f"{self.codigo_produto_atual}{sufixo}"
 
@@ -267,15 +300,26 @@ class ColunaAcao(ctk.CTkFrame):
                     messagebox.showerror("Erro", f"Não foi possível remover arquivo anterior:\n{e}")
                     return
 
-        # Salva a nova imagem como .jpg
+        # Salva como .jpg mantendo o tamanho original
         caminho_destino = os.path.join(caminho_fotos, f"{nome_base}.jpg")
         try:
             os.makedirs(caminho_fotos, exist_ok=True)
-            self.imagem_colada.save(caminho_destino, "JPEG", quality=95)
-            messagebox.showinfo("Sucesso", f"Imagem salva em:\n{caminho_destino}")
+            self.imagem_pendente.save(caminho_destino, "JPEG", quality=95)
             logging.info(f"Imagem salva: {caminho_destino}")
+            messagebox.showinfo("Sucesso", f"Imagem salva em:\n{caminho_destino}")
+            if self.callback_recarregar_galeria:
+                self.callback_recarregar_galeria()
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao salvar imagem:\n{e}")
+
+    def preparar_edicao(self, numero_foto, descricao_produto, codigo_produto=""):
+        self.descricao_atual = descricao_produto
+        self.numero_foto_atual = numero_foto
+        self.codigo_produto_atual = codigo_produto
+        self.frame_vazio.pack_forget()
+        self.frame_acoes.pack(expand=True, fill="both")
+        self.label_info_foto.configure(text=f"Editando Imagem Número {numero_foto}")
+        self._resetar_preview()
 
     def abrir_google(self):
         if self.descricao_atual:
@@ -286,6 +330,6 @@ class ColunaAcao(ctk.CTkFrame):
     def resetar(self):
         self.frame_acoes.pack_forget()
         self.frame_vazio.pack(expand=True, fill="both")
-        self.imagem_colada = None
+        self.imagem_pendente = None
         self.numero_foto_atual = None
         self.codigo_produto_atual = None
