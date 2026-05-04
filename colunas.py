@@ -21,9 +21,22 @@ class ColunaBusca(ctk.CTkFrame):
         self.label_titulo = ctk.CTkLabel(self, text="Busca de Produto", font=("Roboto", 16, "bold"))
         self.label_titulo.pack(pady=(20, 10))
 
-        self.entrada_codigo = ctk.CTkEntry(self, placeholder_text="Digite o código")
-        self.entrada_codigo.pack(fill="x", padx=20, pady=10)
+        # Frame que agrupa input + botão
+        self.frame_busca = ctk.CTkFrame(self, fg_color="transparent")
+        self.frame_busca.pack(fill="x", padx=20, pady=10)
+
+        self.entrada_codigo = ctk.CTkEntry(self.frame_busca, placeholder_text="Digite o código")
+        self.entrada_codigo.pack(side="left", fill="x", expand=True)
         self.entrada_codigo.bind("<Return>", self.executar_busca)
+
+        self.btn_buscar = ctk.CTkButton(
+            self.frame_busca,
+            text="🔍",
+            width=26,
+            cursor="hand2",
+            command=self.executar_busca
+        )
+        self.btn_buscar.pack(side="left", padx=(6, 0))
 
         self.label_descricao = ctk.CTkLabel(self, text="Aguardando busca...", wraplength=200)
         self.label_descricao.pack(pady=20)
