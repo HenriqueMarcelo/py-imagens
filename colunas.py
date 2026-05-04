@@ -7,8 +7,16 @@ import logging
 from gestor_imagens import GestorImagens
 import webbrowser
 import urllib.parse
+import sys
 
 logging.basicConfig(level=logging.INFO)
+
+def caminho_recurso(relativo):
+    """Resolve o caminho tanto em desenvolvimento quanto no .exe"""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relativo)
+    return os.path.join(os.path.dirname(__file__), relativo)
+
 
 
 class ColunaBusca(ctk.CTkFrame):
@@ -72,7 +80,7 @@ class ColunaGaleria(ctk.CTkFrame):
 
         self.gestor = GestorImagens()
         self._cache_renderizado = {}
-        self.caminho_padrao = "./sem-imagem.jpg"
+        self.caminho_padrao = caminho_recurso("sem-imagem.jpg")
         self.img_padrao_ctk = self._gerar_imagem_padrao()
 
         self.frame_vazio = ctk.CTkFrame(self, fg_color="transparent")
