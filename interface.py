@@ -9,6 +9,7 @@ class JanelaPrincipal(ctk.CTk):
         super().__init__()
         self.banco = logica_banco
         self.produto_nome_atual = ""
+        self.codigo_atual = ""
         
         self.title("Gerenciador de Fotos")
         self.geometry("1100x600")
@@ -29,16 +30,15 @@ class JanelaPrincipal(ctk.CTk):
         self.col1.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
     def ao_selecionar_produto(self, sucesso, resultado, codigo=""):
-        """Chamado quando o produto é buscado na Coluna 1"""
         if sucesso:
             self.produto_nome_atual = resultado
+            self.codigo_atual = codigo
             self.col2.alternar_estado(True, resultado, codigo)
         else:
             self.produto_nome_atual = ""
+            self.codigo_atual = ""    
             self.col2.alternar_estado(False)
-        
-        # Sempre que buscar um novo produto, limpamos a coluna de ação
         self.col3.resetar()
 
     def ao_clicar_na_foto(self, numero_foto):
-        self.col3.preparar_edicao(numero_foto, self.produto_nome_atual)
+        self.col3.preparar_edicao(numero_foto, self.produto_nome_atual, self.codigo_atual)
