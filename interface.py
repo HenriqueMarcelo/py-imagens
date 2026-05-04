@@ -43,3 +43,8 @@ class JanelaPrincipal(ctk.CTk):
 
     def ao_clicar_na_foto(self, numero_foto):
         self.col3.preparar_edicao(numero_foto, self.produto_nome_atual, self.codigo_atual)
+
+    def buscar_codigo_inicial(self, codigo):
+        self.col1.entrada_codigo.delete(0, "end")
+        self.col1.entrada_codigo.insert(0, codigo)
+        self.col1.executar_busca()
