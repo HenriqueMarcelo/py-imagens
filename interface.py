@@ -26,9 +26,13 @@ class JanelaPrincipal(ctk.CTk):
         self.col3 = ColunaAcao(self, self.banco.testar_conexao)
         self.col3.grid(row=0, column=2, padx=10, pady=10, sticky="nsew")
 
-    def ao_selecionar_produto(self, sucesso, resultado):
+    def ao_selecionar_produto(self, sucesso, resultado, codigo=""):
         """Esta função é chamada sempre que uma busca termina"""
         if sucesso:
-            self.col2.mostrar_galeria(resultado)
+            self.col2.alternar_estado(True, resultado, codigo)
         else:
-            self.col2.resetar_galeria()
+            self.col2.alternar_estado(False)
+
+    def evento_produto_selecionado(self, sucesso, resultado, codigo=""):
+        # Repassa o sucesso, o nome e o código de 15 dígitos para a galeria
+        self.col2.alternar_estado(sucesso, resultado, codigo)
