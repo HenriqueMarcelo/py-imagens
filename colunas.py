@@ -66,7 +66,7 @@ class ColunaBusca(ctk.CTkFrame):
     def finalizar(self, sucesso, resultado, codigo):
         self.label_descricao.configure(
             text=f"[{codigo}]\n{resultado}" if sucesso else resultado,
-            text_color="white" if sucesso else "#FF5555"
+            text_color="black" if sucesso else "#CC0000"
         )
         self.callback_selecao(sucesso, resultado, codigo)
 
@@ -102,7 +102,7 @@ class ColunaGaleria(ctk.CTkFrame):
                 self.grid_fotos,
                 text="", image=self.img_padrao_ctk,
                 width=150, height=150, corner_radius=10,
-                cursor="hand2", fg_color="#2b2b2b",
+                cursor="hand2", fg_color="#a6a4a4",
                 command=lambda idx=i: self.callback_clique_foto(idx + 1)
             )
             btn.grid(row=i // 2, column=i % 2, padx=10, pady=10)
@@ -208,7 +208,7 @@ class ColunaAcao(ctk.CTkFrame):
 
         self.preview = ctk.CTkLabel(
             self.frame_acoes, text="Pré-visualização",
-            width=200, height=200, fg_color="#1a1a1a", corner_radius=10
+            width=200, height=200, fg_color="#a6a4a4", corner_radius=10
         )
         self.preview.pack(pady=20)
 
